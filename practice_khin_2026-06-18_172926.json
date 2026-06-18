@@ -1,0 +1,95 @@
+{
+  "student": "khin",
+  "generated_on": "2026-06-18T17:29:26.348819",
+  "total_questions": 8,
+  "questions": [
+    {
+      "question": "Which built-in Python function is used to get the number of items in a list?",
+      "options": {
+        "A": "len()",
+        "B": "count()",
+        "C": "size()",
+        "D": "length()"
+      },
+      "answer": "A",
+      "topic": "built_in_functions"
+    },
+    {
+      "question": "What is the output of `type(3.14)` in Python?",
+      "options": {
+        "A": "<class 'float'>",
+        "B": "'float'",
+        "C": "float",
+        "D": "<class 'int'>"
+      },
+      "answer": "A",
+      "topic": "built_in_functions"
+    },
+    {
+      "question": "What is the data type of the expression 5 / 2 in Python 3?",
+      "options": {
+        "A": "float",
+        "B": "int",
+        "C": "complex",
+        "D": "bool"
+      },
+      "answer": "A",
+      "topic": "data_types"
+    },
+    {
+      "question": "Which of the following Python data types is immutable?",
+      "options": {
+        "A": "list",
+        "B": "dictionary",
+        "C": "tuple",
+        "D": "set"
+      },
+      "answer": "C",
+      "topic": "data_types"
+    },
+    {
+      "question": "What happens when you run the following Python code?\n\ndef my_func():\n    x = 10\n    return x\n\nprint(x)",
+      "options": {
+        "A": "It prints 10",
+        "B": "It prints None",
+        "C": "It raises a NameError",
+        "D": "It prints 0"
+      },
+      "answer": "C",
+      "topic": "functions"
+    },
+    {
+      "question": "What will be printed when the following Python code is executed?\n\ndef calculate_stats(data):\n    return sum(data)/len(data), max(data) - min(data)\n\nprint(calculate_stats([10, 20, 30, 40]))",
+      "options": {
+        "A": "(25.0, 30)",
+        "B": "(25, 30)",
+        "C": "(25.0, 30.0)",
+        "D": "Error"
+      },
+      "answer": "A",
+      "topic": "functions"
+    },
+    {
+      "question": "Given the list numbers = [10, 20, 30, 40, 50], what does numbers[1:4] return?",
+      "options": {
+        "A": "[10, 20, 30]",
+        "B": "[20, 30, 40]",
+        "C": "[20, 30, 40, 50]",
+        "D": "[30, 40, 50]"
+      },
+      "answer": "B",
+      "topic": "lists"
+    },
+    {
+      "question": "What is the output of the following Python code?\n\nmy_list = [10, 20, 30, 40, 50]\nprint(my_list[1:4])",
+      "options": {
+        "A": "[20, 30, 40]",
+        "B": "[20, 30, 40, 50]",
+        "C": "[10, 20, 30]",
+        "D": "[30, 40, 50]"
+      },
+      "answer": "A",
+      "topic": "lists"
+    }
+  ]
+}
