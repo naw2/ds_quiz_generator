@@ -1,3 +1,4 @@
 .env
+quiz_history.db
 ds1/
 __pycache__/
