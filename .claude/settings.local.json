@@ -3,5 +3,14 @@
     "allow": [
       "Bash(python3 *)"
     ]
+  },
+  "mcpServers": {
+    "quiz-manager": {
+      "transport": "stdio",
+      "command": "python3",
+      "args": [
+        "mcp_server.py"
+      ]
+    }
   }
 }
