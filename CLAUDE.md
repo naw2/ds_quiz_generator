@@ -44,11 +44,11 @@ When the MCP server is connected, Claude can call these tools directly:
 - `get_weak_topics` — Which topics a student needs practice with (below 70%)
 - `get_recent_activity` — Most recent quiz answers
 
-To connect the MCP server: `claude mcp add --transport stdio quiz-manager "python3 mcp_server.py"`
+The MCP server auto-connects via `.mcp.json` — no manual setup needed. When you open this project in Claude Code, the server is ready to use.
 
 ### Key design decisions:
 - Topic tags on every question (lists, numpy, built_in_functions, functions, data_types)
-- SQLite database chosen (quiz_history.db) with 29 recorded answers from 5 students
+- SQLite database chosen (quiz_history.db) with 34 recorded answers from 4 students
 - Claude API connected via proxy.vibecode.tours (NOT the Anthropic SDK — uses plain HTTP via `requests`)
 - Practice questions saved as JSON files (e.g. practice_khin_2026-06-17_180942.json)
 - Weak topic threshold = accuracy below 70%
