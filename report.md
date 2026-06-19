@@ -1,7 +1,7 @@
 # Ch-3 Personal Project — Report
 
-**GitHub username:** [TODO: your GitHub username]
-**Personal repo URL:** [TODO: e.g. https://github.com/your-username/quiz-generator]
+**GitHub username:** naw2
+**Personal repo URL:** https://github.com/naw2/ds_quiz_generator
 **Project summary:** A personalized Python quiz generator for data science students — tracks weak topics, uses Claude API to generate fresh practice questions, and provides classroom reports via MCP tools.
 
 **Slides URL:** [TODO: path inside your repo, e.g. slides/pitch.md — create a slides/ folder and add your presentation file]
