@@ -78,16 +78,17 @@ elif page == "Take Quiz":
     # Step 1: Get student name
     if not st.session_state.quiz_started:
         name = st.text_input("Enter your name:")
-        if st.button("Start Quiz") and name.strip():
-            st.session_state.student_name = name.strip()
-            st.session_state.quiz_started = True
-            st.session_state.current_q = 0
-            st.session_state.score = 0
-            st.session_state.answers = []
-            setup_database()
-            st.rerun()
-        elif st.button("Start Quiz") and not name.strip():
-            st.warning("Please enter your name first!")
+        if st.button("Start Quiz"):
+            if name.strip():
+                st.session_state.student_name = name.strip()
+                st.session_state.quiz_started = True
+                st.session_state.current_q = 0
+                st.session_state.score = 0
+                st.session_state.answers = []
+                setup_database()
+                st.rerun()
+            else:
+                st.warning("Please enter your name first!")
 
     # Step 2: Show questions one at a time
     elif st.session_state.current_q < len(questions):
