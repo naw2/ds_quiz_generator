@@ -238,43 +238,49 @@ elif page == "Practice Quiz":
     if not st.session_state.practice_started:
         name = st.text_input("Enter your name:")
 
-        if st.button("Find My Weak Topics") and name.strip():
-            setup_database()
-            from practice_quiz import find_weak_topics
-            weak = find_weak_topics(name.strip())
-
-            if weak is None:
-                st.warning(f"No quiz history for '{name.strip()}'. Take the main quiz first!")
-            elif not weak:
-                st.success(f"🎉 No weak topics! You're doing great!")
+        if st.button("Find My Weak Topics"):
+            if not name.strip():
+                st.warning("Please enter your name.")
             else:
-                st.session_state.practice_name = name.strip()
-                st.info(f"📌 Weak topics: **{', '.join(weak)}**")
+                setup_database()
+                from practice_quiz import find_weak_topics
+                weak = find_weak_topics(name.strip())
 
-                if st.button("Generate Practice Questions"):
-                    with st.spinner("🤖 Generating fresh questions with AI..."):
-                        quiz_questions = []
-                        for topic in weak:
-                            for _ in range(2):  # 2 questions per topic
-                                try:
-                                    new_q = generate_question(topic)
-                                    quiz_questions.append(new_q)
-                                except Exception as e:
-                                    st.warning(f"Failed to generate question for {topic}: {e}")
+                if weak is None:
+                    st.warning(f"No quiz history for '{name.strip()}'. Take the main quiz first!")
+                elif not weak:
+                    st.success(f"🎉 No weak topics! You're doing great!")
+                else:
+                    st.session_state.practice_name = name.strip()
+                    st.session_state.practice_weak_topics = weak
+                    st.rerun()
 
-                        if quiz_questions:
-                            random.shuffle(quiz_questions)
-                            st.session_state.practice_questions = quiz_questions
-                            st.session_state.practice_started = True
-                            st.session_state.practice_current = 0
-                            st.session_state.practice_score = 0
-                            st.session_state.practice_answers = []
-                            st.rerun()
-                        else:
-                            st.error("Could not generate any questions. Check API connection.")
+        # Show weak topics and generate button if we have them
+        if hasattr(st.session_state, 'practice_weak_topics') and st.session_state.practice_weak_topics:
+            weak = st.session_state.practice_weak_topics
+            st.info(f"📌 Weak topics: **{', '.join(weak)}**")
 
-        elif st.button("Find My Weak Topics") and not name.strip():
-            st.warning("Please enter your name.")
+            if st.button("Generate Practice Questions"):
+                with st.spinner("🤖 Generating fresh questions with AI..."):
+                    quiz_questions = []
+                    for topic in weak:
+                        for _ in range(2):  # 2 questions per topic
+                            try:
+                                new_q = generate_question(topic)
+                                quiz_questions.append(new_q)
+                            except Exception as e:
+                                st.warning(f"Failed to generate question for {topic}: {e}")
+
+                    if quiz_questions:
+                        random.shuffle(quiz_questions)
+                        st.session_state.practice_questions = quiz_questions
+                        st.session_state.practice_started = True
+                        st.session_state.practice_current = 0
+                        st.session_state.practice_score = 0
+                        st.session_state.practice_answers = []
+                        st.rerun()
+                    else:
+                        st.error("Could not generate any questions. Check API connection.")
 
     # Run the practice quiz
     elif st.session_state.practice_current < len(st.session_state.practice_questions):
