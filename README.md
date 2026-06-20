@@ -29,6 +29,7 @@ Built for data science students learning Python basics.
 | `generate_question.py` | Calls Claude API to create a new question for any topic |
 | `generate_practice.py` | Finds weak topics, generates questions, saves to JSON |
 | `practice_quiz.py` | Full practice quiz — finds weak topics, generates fresh questions on the fly, saves results |
+| `app.py` | **Streamlit web UI** — run the quiz, check progress, and practice in a browser |
 
 ## How to Run
 
@@ -38,10 +39,21 @@ Built for data science students learning Python basics.
 - `requests` library (for Claude API calls)
 
 ```bash
-pip install requests python-dotenv
+pip install requests python-dotenv streamlit
 ```
 
-### Run the Main Quiz
+### Run the Web UI (Recommended)
+
+```bash
+streamlit run app.py
+```
+
+Opens in your browser at `http://localhost:8501`. From there you can:
+- Take the quiz
+- See your progress with charts
+- Practice with AI-generated questions
+
+### Run the Main Quiz (Terminal)
 
 ```bash
 python3 quiz.py
@@ -132,6 +144,7 @@ Your answer (A/B/C/D): B
 ## Tech Stack
 
 - **Python 3.12** — main language
+- **Streamlit** — web UI framework
 - **SQLite** — stores quiz history (`quiz_history.db`)
 - **Claude API** — generates new questions via `proxy.vibecode.tours`
 - **requests** — HTTP calls to the API
@@ -139,6 +152,6 @@ Your answer (A/B/C/D): B
 
 ## Future Plans
 
-- [ ] Streamlit web UI
+- [x] Streamlit web UI
 - [ ] More question topics
 - [ ] Student progress charts
