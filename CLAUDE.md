@@ -12,7 +12,7 @@ Built by: naw2
 - Language: Python 3.12
 - Storage: SQLite (quiz_history.db)
 - AI: Claude API via teacher-provided proxy (proxy.vibecode.tours, model: mimo-v2.5-pro)
-- UI: Command line for now. Streamlit planned next.
+- UI: Streamlit web app (app.py) + command line scripts
 
 ## Current Status (as of 2026-06-18)
 
@@ -26,6 +26,7 @@ Built by: naw2
 | `generate_question.py` | Calls Claude API to create a new multiple-choice question for a given topic |
 | `generate_practice.py` | Bridge: finds weak topics → calls Claude → saves generated questions to a JSON file |
 | `practice_quiz.py` | Full end-to-end: finds weak topics, generates fresh questions on the fly, runs a quiz, saves results back to DB |
+| `app.py` | Streamlit web UI — run the quiz, check progress, and practice in a browser |
 
 ### Claude Code tools we've set up:
 
@@ -59,7 +60,7 @@ The MCP server auto-connects via `.mcp.json` — no manual setup needed. When yo
 2. [DONE] Add a "topic" tag to each question + save quiz results to a file after each run.
 3. [DONE] Analyze saved results to find weak topics.
 4. [DONE] Use Claude API to generate new questions for weak topics.
-5. [NEXT] Build a simple Streamlit UI.
+5. [DONE] Build a simple Streamlit UI.
 
 ## Working Style — IMPORTANT
 - I am a beginner with Claude Code, CLAUDE.md, and AI agent concepts.

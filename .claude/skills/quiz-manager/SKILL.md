@@ -18,6 +18,7 @@ tracks which topics they get wrong, and generates new questions for their weak a
 | `generate_practice.py` | Finds weak topics, calls Claude API, saves new questions to a JSON file |
 | `practice_quiz.py` | Finds weak topics, generates fresh questions, runs them as a quiz, saves results |
 | `quiz_history.db` | SQLite database with all quiz answers |
+| `app.py` | Streamlit web UI — run quiz, check progress, and practice in browser |
 
 ## Database structure
 
@@ -68,7 +69,13 @@ This calls the Claude API (via proxy.vibecode.tours) to create new questions. Im
 - Output is a JSON file like `practice_khin_2026-06-18_172926.json`
 - It generates 2 questions per weak topic by default
 
-### 4. Run a personalized practice quiz (`practice_quiz.py`)
+### 4. Run the web UI (`app.py`)
+```bash
+cd <project-root> && streamlit run app.py
+```
+Opens a browser at http://localhost:8501 with a sidebar menu: Take Quiz, My Progress, Practice Quiz. This is the recommended way for students to use the app — no terminal needed.
+
+### 5. Run a personalized practice quiz (`practice_quiz.py`)
 ```bash
 cd <project-root> && python3 practice_quiz.py
 ```
