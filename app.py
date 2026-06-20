@@ -189,37 +189,37 @@ elif page == "My Progress":
                 st.warning(f"No quiz history found for '{name.strip()}'.")
                 st.write("Take the quiz first!")
             else:
-            # Build a table
-            st.subheader(f"Topic Report for {name.strip()}")
+                # Build a table
+                st.subheader(f"Topic Report for {name.strip()}")
 
-            data = []
-            weak_topics = []
-            for topic, total, correct in breakdown:
-                accuracy = round((correct / total) * 100, 1)
-                status = "✅ OK" if accuracy >= WEAK_THRESHOLD else "⚠️ Weak"
-                if accuracy < WEAK_THRESHOLD:
-                    weak_topics.append(topic)
-                data.append({
-                    "Topic": topic,
-                    "Correct": correct,
-                    "Total": total,
-                    "Accuracy %": accuracy,
-                    "Status": status,
-                })
+                data = []
+                weak_topics = []
+                for topic, total, correct in breakdown:
+                    accuracy = round((correct / total) * 100, 1)
+                    status = "✅ OK" if accuracy >= WEAK_THRESHOLD else "⚠️ Weak"
+                    if accuracy < WEAK_THRESHOLD:
+                        weak_topics.append(topic)
+                    data.append({
+                        "Topic": topic,
+                        "Correct": correct,
+                        "Total": total,
+                        "Accuracy %": accuracy,
+                        "Status": status,
+                    })
 
-            st.dataframe(data, use_container_width=True)
+                st.dataframe(data, use_container_width=True)
 
-            # Bar chart
-            st.subheader("Accuracy by Topic")
-            chart_data = {row["Topic"]: row["Accuracy %"] for row in data}
-            st.bar_chart(chart_data)
+                # Bar chart
+                st.subheader("Accuracy by Topic")
+                chart_data = {row["Topic"]: row["Accuracy %"] for row in data}
+                st.bar_chart(chart_data)
 
-            # Weak topics alert
-            if weak_topics:
-                st.error(f"⚠️ Weak topics (below {WEAK_THRESHOLD}%): **{', '.join(weak_topics)}**")
-                st.write("Go to **Practice Quiz** to work on these!")
-            else:
-                st.success(f"🎉 All topics above {WEAK_THRESHOLD}%! Great job!")
+                # Weak topics alert
+                if weak_topics:
+                    st.error(f"⚠️ Weak topics (below {WEAK_THRESHOLD}%): **{', '.join(weak_topics)}**")
+                    st.write("Go to **Practice Quiz** to work on these!")
+                else:
+                    st.success(f"🎉 All topics above {WEAK_THRESHOLD}%! Great job!")
 
 # ---------------------------------------------------------
 # PAGE: PRACTICE QUIZ
