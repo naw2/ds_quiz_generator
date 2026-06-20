@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Teacher-provided proxy settings
-API_KEY = os.getenv("ANTHROPIC_API_KEY", "REMOVED_API_KEY")
+API_KEY = os.getenv("ANTHROPIC_API_KEY")
 BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://proxy.vibecode.tours")
 MODEL = os.getenv("ANTHROPIC_MODEL", "mimo-v2.5-pro")
 
