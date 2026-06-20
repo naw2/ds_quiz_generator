@@ -2,6 +2,8 @@
 
 A Python quiz app that tracks student performance and uses AI to generate fresh practice questions targeting weak areas.
 
+**🌐 Live App: [https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/](https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/)**
+
 Built for data science students learning Python basics.
 
 ## What It Does

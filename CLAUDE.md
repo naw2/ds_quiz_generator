@@ -8,6 +8,9 @@ and will eventually generate NEW questions targeting their weak topics
 
 Built by: naw2
 
+## Live App
+🌐 https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/
+
 ## Tech Stack
 - Language: Python 3.12
 - Storage: SQLite (quiz_history.db)

@@ -54,9 +54,18 @@ not generic drills everyone gets the same.
 
 ---
 
+# Try it live 🌐
+
+**https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/**
+
+No install needed — just open the link and start quizzing!
+
+---
+
 # Done checklist
 
 - [x] repo public
 - [x] MCP + skill + agent used
 - [x] report.md in repo
+- [x] Streamlit web UI deployed
 

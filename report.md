@@ -4,6 +4,7 @@ github_username: naw2
 personal_repo_url: https://github.com/naw2/ds_quiz_generator
 project_summary: A personalized Python quiz generator for data science students — tracks weak topics, uses Claude API to generate fresh practice questions, and provides classroom reports via MCP tools.
 slides_url: slides/pechakucha-6x20.md
+live_app_url: https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/
 
 ## Methodology
 <!-- How you worked: project-based approach + your git workflow (commit as you build). 2-4 sentences. -->
