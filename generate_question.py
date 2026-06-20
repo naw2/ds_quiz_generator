@@ -13,10 +13,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Teacher-provided proxy settings
-API_KEY = os.getenv("ANTHROPIC_API_KEY")
-BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://proxy.vibecode.tours")
-MODEL = os.getenv("ANTHROPIC_MODEL", "mimo-v2.5-pro")
+# Try to get settings from Streamlit secrets first, then env vars
+try:
+    import streamlit as st
+    API_KEY = os.getenv("ANTHROPIC_API_KEY") or st.secrets.get("ANTHROPIC_API_KEY")
+    BASE_URL = os.getenv("ANTHROPIC_BASE_URL") or st.secrets.get("ANTHROPIC_BASE_URL", "https://proxy.vibecode.tours")
+    MODEL = os.getenv("ANTHROPIC_MODEL") or st.secrets.get("ANTHROPIC_MODEL", "mimo-v2.5-pro")
+except Exception:
+    # Fallback if not running in Streamlit
+    API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://proxy.vibecode.tours")
+    MODEL = os.getenv("ANTHROPIC_MODEL", "mimo-v2.5-pro")
 
 
 def call_claude(prompt):
@@ -73,7 +80,7 @@ def call_claude(prompt):
             if first_text and first_text.strip():
                 return first_text
 
-            last_error = "Empty response from API (attempt {attempt})"
+            last_error = f"Empty response from API (attempt {attempt})"
 
         except RuntimeError:
             raise  # re-raise non-retryable errors immediately
