@@ -178,14 +178,17 @@ elif page == "My Progress":
 
     name = st.text_input("Enter student name:")
 
-    if st.button("Check Progress") and name.strip():
-        setup_database()
-        breakdown = get_topic_breakdown(name.strip())
-
-        if not breakdown:
-            st.warning(f"No quiz history found for '{name.strip()}'.")
-            st.write("Take the quiz first!")
+    if st.button("Check Progress"):
+        if not name.strip():
+            st.warning("Please enter a student name.")
         else:
+            setup_database()
+            breakdown = get_topic_breakdown(name.strip())
+
+            if not breakdown:
+                st.warning(f"No quiz history found for '{name.strip()}'.")
+                st.write("Take the quiz first!")
+            else:
             # Build a table
             st.subheader(f"Topic Report for {name.strip()}")
 
@@ -217,9 +220,6 @@ elif page == "My Progress":
                 st.write("Go to **Practice Quiz** to work on these!")
             else:
                 st.success(f"🎉 All topics above {WEAK_THRESHOLD}%! Great job!")
-
-    elif st.button("Check Progress") and not name.strip():
-        st.warning("Please enter a student name.")
 
 # ---------------------------------------------------------
 # PAGE: PRACTICE QUIZ
