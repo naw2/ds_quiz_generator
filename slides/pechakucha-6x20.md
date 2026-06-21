@@ -60,12 +60,5 @@ not generic drills everyone gets the same.
 
 No install needed — just open the link and start quizzing!
 
----
-
-# Done checklist
-
-- [x] repo public
-- [x] MCP + skill + agent used
-- [x] report.md in repo
-- [x] Streamlit web UI deployed
+✅ repo public · ✅ MCP + skill + agent · ✅ report.md · ✅ Streamlit deployed
 
