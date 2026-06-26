@@ -2,6 +2,8 @@
 
 A Python quiz app that tracks student performance and uses AI to generate fresh practice questions targeting weak areas.
 
+An AI-powered quiz app that tracks student performance, finds weak topics, and generates personalized practice questions using the Claude API.
+
 **🌐 Live App: [https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/](https://dsquizgenerator-selht4jqurewdvmusqxkvg.streamlit.app/)**
 
 Built for data science students learning Python basics.
