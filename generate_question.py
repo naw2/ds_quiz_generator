@@ -9,9 +9,14 @@ the proxy needs a different auth method than what the SDK sends.
 import os
 import json
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+# dotenv is optional — only needed for local development
+# On Streamlit Cloud, secrets are stored in the app settings instead
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # Not installed on Streamlit Cloud — that's fine
 
 # Try to get settings from Streamlit secrets first, then env vars
 try:
