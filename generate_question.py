@@ -105,7 +105,7 @@ def generate_question(topic, difficulty='beginner'):
         difficulty: 'beginner', 'intermediate', or 'advanced'
 
     Returns a dictionary in the SAME shape as our hardcoded questions:
-    {"question": ..., "options": {...}, "answer": ..., "topic": ..., "difficulty": ...}
+    {"question": ..., "options": {...}, "answer": ..., "explanation": ..., "topic": ..., "difficulty": ...}
     """
 
     # Build a difficulty-specific instruction
@@ -140,10 +140,12 @@ in exactly this shape:
     "C": "option C text",
     "D": "option D text"
   }},
-  "answer": "A"
+  "answer": "A",
+  "explanation": "1-2 sentences explaining why the correct answer is right."
 }}
 
-The "answer" must be one of "A", "B", "C", or "D" — whichever option is correct."""
+The "answer" must be one of "A", "B", "C", or "D" — whichever option is correct.
+The "explanation" should be clear and helpful for a student learning Python."""
 
     # Retry up to 3 times — the API sometimes returns truncated JSON
     last_error = None

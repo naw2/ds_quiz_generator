@@ -7,10 +7,14 @@ Pages:
   2. Take Quiz     — 10 dynamic questions with difficulty selection
   3. My Progress   — topic-by-topic accuracy with charts
   4. Practice Quiz — AI-generated questions for weak topics
+
+Style: Duolingo-inspired with timers, feedback cards, and explanations.
 """
 
 import streamlit as st
 import random
+import time
+import streamlit.components.v1 as components
 
 # Import helpers from our existing scripts
 from database import setup_database, save_result, DB_FILE
@@ -26,6 +30,197 @@ st.set_page_config(
     page_icon="🎯",
     layout="centered",
 )
+
+# ---------------------------------------------------------
+# CUSTOM CSS — Duolingo-inspired styling
+# ---------------------------------------------------------
+st.markdown("""
+<style>
+    /* Green progress bar like Duolingo */
+    .stProgress > div > div > div > div {
+        background-color: #58cc02 !important;
+    }
+
+    /* Feedback cards */
+    .feedback-correct {
+        background-color: #d7ffb8;
+        border: 2px solid #58cc02;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin: 10px 0;
+    }
+    .feedback-wrong {
+        background-color: #ffdfe0;
+        border: 2px solid #ff4b4b;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin: 10px 0;
+    }
+    .feedback-timeout {
+        background-color: #fff3cd;
+        border: 2px solid #ff9f43;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin: 10px 0;
+    }
+
+    /* Timer display */
+    .timer-display {
+        font-size: 1.4em;
+        font-weight: bold;
+        text-align: center;
+        padding: 8px 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+    .timer-normal { color: #58cc02; background-color: #e8f5e9; }
+    .timer-warning { color: #ff9f43; background-color: #fff3cd; }
+    .timer-critical { color: #ff4b4b; background-color: #ffdfe0; }
+
+    /* Score display */
+    .score-badge {
+        background: linear-gradient(135deg, #58cc02, #46a302);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        margin: 4px;
+    }
+
+    /* Explanation box */
+    .explanation-box {
+        background-color: #f0f4ff;
+        border-left: 4px solid #1cb0f6;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        margin: 10px 0;
+    }
+
+    /* Topic tag */
+    .topic-tag {
+        background-color: #e8e8e8;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        display: inline-block;
+        margin-right: 6px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# HELPER: COUNTDOWN TIMER COMPONENT
+# ---------------------------------------------------------
+def show_timer(seconds_left, total_seconds=20):
+    """Display a countdown timer using embedded JavaScript."""
+    if seconds_left > 10:
+        timer_class = "timer-normal"
+    elif seconds_left > 5:
+        timer_class = "timer-warning"
+    else:
+        timer_class = "timer-critical"
+
+    st.markdown(
+        f'<div class="timer-display {timer_class}">⏱️ {int(seconds_left)}s</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------
+# HELPER: ENCOURAGING MESSAGES
+# ---------------------------------------------------------
+CORRECT_MESSAGES = [
+    "Great job! 🎉",
+    "You're on fire! 🔥",
+    "Awesome! ⭐",
+    "Nailed it! 💪",
+    "Keep it up! 🚀",
+    "Brilliant! 🌟",
+    "Perfect! ✨",
+    "Well done! 🏆",
+]
+
+WRONG_MESSAGES = [
+    "Not quite — but you'll get it! 💪",
+    "Good try! Keep going! 🌱",
+    "Almost there! 🎯",
+    "Don't worry, learning takes time! 📚",
+    "You'll get it next time! 🔄",
+    "Keep practicing! 💡",
+]
+
+
+def random_correct_msg():
+    return random.choice(CORRECT_MESSAGES)
+
+
+def random_wrong_msg():
+    return random.choice(WRONG_MESSAGES)
+
+
+# ---------------------------------------------------------
+# HELPER: SHOW FEEDBACK AFTER ANSWERING
+# ---------------------------------------------------------
+def show_feedback(is_correct, correct_answer, explanation, time_up=False):
+    """Display Duolingo-style feedback card after an answer."""
+    if time_up:
+        st.markdown("""
+        <div class="feedback-timeout">
+            <strong style="font-size:1.3em;">⏰ Time's up!</strong><br>
+            <span>The correct answer was <strong>{}</strong></span>
+        </div>
+        """.format(correct_answer), unsafe_allow_html=True)
+        st.info(random_wrong_msg())
+    elif is_correct:
+        st.markdown("""
+        <div class="feedback-correct">
+            <strong style="font-size:1.3em;">✅ Correct!</strong>
+        </div>
+        """, unsafe_allow_html=True)
+        st.success(random_correct_msg())
+    else:
+        st.markdown("""
+        <div class="feedback-wrong">
+            <strong style="font-size:1.3em;">❌ Incorrect</strong><br>
+            <span>The correct answer was <strong>{}</strong></span>
+        </div>
+        """.format(correct_answer), unsafe_allow_html=True)
+        st.warning(random_wrong_msg())
+
+    # Show explanation (for wrong answers and timeouts)
+    if explanation and (not is_correct or time_up):
+        st.markdown(f"""
+        <div class="explanation-box">
+            💡 <strong>Explanation:</strong> {explanation}
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------
+# HELPER: SHOW A QUIZ QUESTION (used by both quiz pages)
+# ---------------------------------------------------------
+def show_question(q, q_num, total, key_prefix="q"):
+    """Display one quiz question with options. Returns the selected answer letter or None."""
+    # Topic and difficulty tags
+    diff_emoji = {"beginner": "🟢", "intermediate": "🟡", "advanced": "🔴"}.get(
+        q.get("difficulty", "beginner"), "🟢"
+    )
+    st.markdown(
+        f'<span class="topic-tag">📖 {q["topic"]}</span>'
+        f'<span class="topic-tag">{diff_emoji} {q.get("difficulty", "beginner")}</span>',
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    st.subheader(f"Question {q_num} of {total}")
+    st.write(f"**{q['question']}**")
+
+    # Radio buttons for options
+    options = [f"{letter}. {text}" for letter, text in q["options"].items()]
+    choice = st.radio("Choose your answer:", options, key=f"{key_prefix}{q_num}")
+    selected_letter = choice[0]  # "A", "B", "C", or "D"
+    return selected_letter
+
 
 # ---------------------------------------------------------
 # SIDEBAR NAVIGATION
@@ -61,6 +256,11 @@ if page == "Home":
     - Functions
     - Data types
 
+    ### ✨ New features
+    - ⏱️ **20-second timer** per question — think fast!
+    - 💡 **Explanations** when you get it wrong — learn from mistakes
+    - 🎯 **Instant feedback** — see if you're right before moving on
+
     👈 **Use the sidebar to get started!**
     """)
 
@@ -79,6 +279,11 @@ elif page == "Take Quiz":
         st.session_state.quiz_difficulty = "beginner"
         st.session_state.quiz_questions = []
         st.session_state.answers = []
+        st.session_state.quiz_feedback = False       # True = showing feedback
+        st.session_state.quiz_time_up = False         # True = timer expired
+        st.session_state.quiz_start_time = 0          # when current question appeared
+
+    TIMER_SECONDS = 20  # seconds per question
 
     # Step 1: Get student name and difficulty
     if not st.session_state.quiz_started:
@@ -110,6 +315,9 @@ elif page == "Take Quiz":
                     st.session_state.current_q = 0
                     st.session_state.score = 0
                     st.session_state.answers = []
+                    st.session_state.quiz_feedback = False
+                    st.session_state.quiz_time_up = False
+                    st.session_state.quiz_start_time = time.time()
                     st.rerun()
                 else:
                     st.error("❌ Could not generate questions. Check your API connection and try again.")
@@ -123,44 +331,99 @@ elif page == "Take Quiz":
         q_num = st.session_state.current_q + 1
         total = len(questions)
 
-        st.progress(q_num / total)
-        st.subheader(f"Question {q_num} of {total}")
-        st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
-        st.write(f"**{q['question']}**")
-
-        # Radio buttons for options
-        options = [f"{letter}. {text}" for letter, text in q["options"].items()]
-        choice = st.radio("Choose your answer:", options, key=f"q{q_num}")
-
-        if st.button("Submit Answer"):
-            selected_letter = choice[0]  # "A", "B", "C", or "D"
-            is_correct = selected_letter == q["answer"]
-
-            # Save to database
-            save_result(
-                st.session_state.student_name,
-                q["topic"],
-                q["question"],
-                is_correct,
-                st.session_state.quiz_difficulty,
+        # Progress bar and score header
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.progress(q_num / total)
+        with col2:
+            st.markdown(
+                f'<div class="score-badge">⭐ {st.session_state.score}/{q_num - 1}</div>',
+                unsafe_allow_html=True,
             )
 
-            if is_correct:
-                st.success("✅ Correct!")
-                st.session_state.score += 1
-            else:
-                st.error(f"❌ Incorrect. The answer was {q['answer']}.")
+        # Check if we're in FEEDBACK mode (after answering)
+        if st.session_state.quiz_feedback:
+            # Show the question again (read-only context)
+            st.subheader(f"Question {q_num} of {total}")
+            st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
+            st.write(f"**{q['question']}**")
 
-            st.session_state.answers.append({
-                "question": q["question"],
-                "topic": q["topic"],
-                "selected": selected_letter,
-                "correct": q["answer"],
-                "is_correct": is_correct,
-            })
+            # Show feedback
+            last = st.session_state.answers[-1]
+            show_feedback(
+                last["is_correct"],
+                last["correct"],
+                q.get("explanation", ""),
+                time_up=st.session_state.quiz_time_up,
+            )
 
-            st.session_state.current_q += 1
-            st.rerun()
+            # Continue button
+            if st.button("Continue ➡️", key=f"continue_{q_num}"):
+                st.session_state.current_q += 1
+                st.session_state.quiz_feedback = False
+                st.session_state.quiz_time_up = False
+                st.session_state.quiz_start_time = time.time()
+                st.rerun()
+
+        # ANSWERING mode — show question and options
+        else:
+            # Timer
+            elapsed = time.time() - st.session_state.quiz_start_time
+            remaining = max(0, TIMER_SECONDS - elapsed)
+            show_timer(remaining, TIMER_SECONDS)
+
+            # Auto-expire if time ran out
+            if remaining <= 0:
+                # Time's up — mark as wrong
+                is_correct = False
+                save_result(
+                    st.session_state.student_name,
+                    q["topic"],
+                    q["question"],
+                    is_correct,
+                    st.session_state.quiz_difficulty,
+                )
+                st.session_state.answers.append({
+                    "question": q["question"],
+                    "topic": q["topic"],
+                    "selected": None,
+                    "correct": q["answer"],
+                    "is_correct": is_correct,
+                })
+                st.session_state.quiz_feedback = True
+                st.session_state.quiz_time_up = True
+                st.rerun()
+
+            # Show the question
+            selected_letter = show_question(q, q_num, total, key_prefix="tq")
+
+            # Check button (Duolingo uses "Check", not "Submit")
+            if st.button("Check ✅", key=f"check_{q_num}"):
+                is_correct = selected_letter == q["answer"]
+
+                # Save to database
+                save_result(
+                    st.session_state.student_name,
+                    q["topic"],
+                    q["question"],
+                    is_correct,
+                    st.session_state.quiz_difficulty,
+                )
+
+                if is_correct:
+                    st.session_state.score += 1
+
+                st.session_state.answers.append({
+                    "question": q["question"],
+                    "topic": q["topic"],
+                    "selected": selected_letter,
+                    "correct": q["answer"],
+                    "is_correct": is_correct,
+                })
+
+                st.session_state.quiz_feedback = True
+                st.session_state.quiz_time_up = False
+                st.rerun()
 
     # Step 3: Show final results
     else:
@@ -173,20 +436,21 @@ elif page == "Take Quiz":
         st.metric("Score", f"{score}/{total} ({pct:.0f}%)")
 
         if pct == 100:
-            st.success("Perfect score! 🌟")
+            st.success("Perfect score! You're a Python master! 🌟")
         elif pct >= 80:
-            st.success("Great job! 🌟")
+            st.success("Great job! Almost perfect! 🌟")
         elif pct >= 60:
-            st.info("Good effort! Keep practicing.")
+            st.info("Good effort! Keep practicing to improve. 💪")
         else:
-            st.warning("Keep studying — you'll get it!")
+            st.warning("Keep studying — you'll get it! 📚")
 
-        # Show breakdown
+        # Show detailed breakdown
         st.write("---")
         st.subheader("Your Answers")
         for ans in st.session_state.answers:
             icon = "✅" if ans["is_correct"] else "❌"
-            st.write(f"{icon} **{ans['topic']}** — {ans['question'][:60]}...")
+            selected = ans["selected"] if ans["selected"] else "⏰"
+            st.write(f"{icon} **{ans['topic']}** — {ans['question'][:60]}... → You answered: {selected}")
 
         if st.button("Take Quiz Again"):
             st.session_state.quiz_started = False
@@ -194,6 +458,8 @@ elif page == "Take Quiz":
             st.session_state.score = 0
             st.session_state.quiz_questions = []
             st.session_state.answers = []
+            st.session_state.quiz_feedback = False
+            st.session_state.quiz_time_up = False
             st.rerun()
 
 # ---------------------------------------------------------
@@ -262,6 +528,11 @@ elif page == "Practice Quiz":
         st.session_state.practice_name = ""
         st.session_state.practice_difficulty = "beginner"
         st.session_state.practice_answers = []
+        st.session_state.practice_feedback = False
+        st.session_state.practice_time_up = False
+        st.session_state.practice_start_time = 0
+
+    TIMER_SECONDS = 20  # seconds per question
 
     if not st.session_state.practice_started:
         name = st.text_input("Enter your name:")
@@ -319,6 +590,9 @@ elif page == "Practice Quiz":
                         st.session_state.practice_current = 0
                         st.session_state.practice_score = 0
                         st.session_state.practice_answers = []
+                        st.session_state.practice_feedback = False
+                        st.session_state.practice_time_up = False
+                        st.session_state.practice_start_time = time.time()
                         st.rerun()
                     else:
                         st.error("Could not generate any questions. Check API connection.")
@@ -330,43 +604,93 @@ elif page == "Practice Quiz":
         q = questions_list[idx]
         total = len(questions_list)
 
-        st.progress((idx + 1) / total)
-        st.subheader(f"Question {idx + 1} of {total}")
-        st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
-        st.write(f"**{q['question']}**")
-
-        options = [f"{letter}. {text}" for letter, text in q["options"].items()]
-        choice = st.radio("Choose your answer:", options, key=f"pq{idx}")
-
-        if st.button("Submit Answer", key=f"submit_pq{idx}"):
-            selected_letter = choice[0]
-            is_correct = selected_letter == q["answer"]
-
-            # Save to database
-            save_result(
-                st.session_state.practice_name,
-                q["topic"],
-                q["question"],
-                is_correct,
-                st.session_state.practice_difficulty,
+        # Progress bar and score header
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.progress((idx + 1) / total)
+        with col2:
+            st.markdown(
+                f'<div class="score-badge">⭐ {st.session_state.practice_score}/{idx}</div>',
+                unsafe_allow_html=True,
             )
 
-            if is_correct:
-                st.success("✅ Correct!")
-                st.session_state.practice_score += 1
-            else:
-                st.error(f"❌ Incorrect. The answer was {q['answer']}.")
+        # FEEDBACK mode
+        if st.session_state.practice_feedback:
+            st.subheader(f"Question {idx + 1} of {total}")
+            st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
+            st.write(f"**{q['question']}**")
 
-            st.session_state.practice_answers.append({
-                "question": q["question"],
-                "topic": q["topic"],
-                "selected": selected_letter,
-                "correct": q["answer"],
-                "is_correct": is_correct,
-            })
+            last = st.session_state.practice_answers[-1]
+            show_feedback(
+                last["is_correct"],
+                last["correct"],
+                q.get("explanation", ""),
+                time_up=st.session_state.practice_time_up,
+            )
 
-            st.session_state.practice_current += 1
-            st.rerun()
+            if st.button("Continue ➡️", key=f"p_continue_{idx}"):
+                st.session_state.practice_current += 1
+                st.session_state.practice_feedback = False
+                st.session_state.practice_time_up = False
+                st.session_state.practice_start_time = time.time()
+                st.rerun()
+
+        # ANSWERING mode
+        else:
+            # Timer
+            elapsed = time.time() - st.session_state.practice_start_time
+            remaining = max(0, TIMER_SECONDS - elapsed)
+            show_timer(remaining, TIMER_SECONDS)
+
+            # Auto-expire if time ran out
+            if remaining <= 0:
+                is_correct = False
+                save_result(
+                    st.session_state.practice_name,
+                    q["topic"],
+                    q["question"],
+                    is_correct,
+                    st.session_state.practice_difficulty,
+                )
+                st.session_state.practice_answers.append({
+                    "question": q["question"],
+                    "topic": q["topic"],
+                    "selected": None,
+                    "correct": q["answer"],
+                    "is_correct": is_correct,
+                })
+                st.session_state.practice_feedback = True
+                st.session_state.practice_time_up = True
+                st.rerun()
+
+            # Show question
+            selected_letter = show_question(q, idx + 1, total, key_prefix="pq")
+
+            if st.button("Check ✅", key=f"check_pq{idx}"):
+                is_correct = selected_letter == q["answer"]
+
+                save_result(
+                    st.session_state.practice_name,
+                    q["topic"],
+                    q["question"],
+                    is_correct,
+                    st.session_state.practice_difficulty,
+                )
+
+                if is_correct:
+                    st.session_state.practice_score += 1
+
+                st.session_state.practice_answers.append({
+                    "question": q["question"],
+                    "topic": q["topic"],
+                    "selected": selected_letter,
+                    "correct": q["answer"],
+                    "is_correct": is_correct,
+                })
+
+                st.session_state.practice_feedback = True
+                st.session_state.practice_time_up = False
+                st.rerun()
 
     # Practice quiz results
     else:
@@ -383,15 +707,16 @@ elif page == "Practice Quiz":
         elif pct >= 80:
             st.success("Great improvement! Keep it up! 🌟")
         elif pct >= 60:
-            st.info("Good progress! Practice more to improve.")
+            st.info("Good progress! Practice more to improve. 💪")
         else:
-            st.warning("Keep practicing — you'll get there!")
+            st.warning("Keep practicing — you'll get there! 📚")
 
         st.write("---")
         st.subheader("Your Answers")
         for ans in st.session_state.practice_answers:
             icon = "✅" if ans["is_correct"] else "❌"
-            st.write(f"{icon} **{ans['topic']}** — {ans['question'][:60]}...")
+            selected = ans["selected"] if ans["selected"] else "⏰"
+            st.write(f"{icon} **{ans['topic']}** — {ans['question'][:60]}... → You answered: {selected}")
 
         if st.button("Practice Again"):
             st.session_state.practice_started = False
@@ -399,4 +724,6 @@ elif page == "Practice Quiz":
             st.session_state.practice_current = 0
             st.session_state.practice_score = 0
             st.session_state.practice_answers = []
+            st.session_state.practice_feedback = False
+            st.session_state.practice_time_up = False
             st.rerun()
