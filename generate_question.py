@@ -31,7 +31,7 @@ def call_claude(prompt):
 
     Uses the requests library for HTTP calls.
     The teacher's proxy expects:
-      - x-api-key header for authentication
+      - Authorization: Bearer header for authentication
       - model: mimo-v2.5-pro
     """
     url = f"{BASE_URL}/v1/messages"
@@ -45,7 +45,7 @@ def call_claude(prompt):
     }
 
     headers = {
-        "x-api-key": API_KEY,
+        "Authorization": f"Bearer {API_KEY}",
         "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
     }
@@ -118,24 +118,33 @@ in exactly this shape:
 
 The "answer" must be one of "A", "B", "C", or "D" — whichever option is correct."""
 
-    raw_text = call_claude(prompt)
+    # Retry up to 3 times — the API sometimes returns truncated JSON
+    last_error = None
+    for attempt in range(1, 4):
+        raw_text = call_claude(prompt)
 
-    # Sometimes Claude wraps JSON in markdown code blocks — strip those
-    raw_text = raw_text.strip()
-    if raw_text.startswith("```"):
-        # Remove ```json (or just ```) from the beginning
-        first_newline = raw_text.find("\n")
-        if first_newline != -1:
-            raw_text = raw_text[first_newline + 1:]
-        # Remove closing ``` from the end
-        if raw_text.endswith("```"):
-            raw_text = raw_text[:-3]
+        # Sometimes Claude wraps JSON in markdown code blocks — strip those
         raw_text = raw_text.strip()
+        if raw_text.startswith("```"):
+            # Remove ```json (or just ```) from the beginning
+            first_newline = raw_text.find("\n")
+            if first_newline != -1:
+                raw_text = raw_text[first_newline + 1:]
+            # Remove closing ``` from the end
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            raw_text = raw_text.strip()
 
-    question_data = json.loads(raw_text)
-    question_data["topic"] = topic
+        try:
+            question_data = json.loads(raw_text)
+            question_data["topic"] = topic
+            return question_data
+        except json.JSONDecodeError as e:
+            last_error = f"JSON parse error (attempt {attempt}): {e}"
+            import time
+            time.sleep(1)
 
-    return question_data
+    raise RuntimeError(f"Failed to generate valid question after 3 attempts: {last_error}")
 
 
 if __name__ == "__main__":
