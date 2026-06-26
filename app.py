@@ -32,6 +32,24 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
+# GOOGLE LOGIN — runs on every page load
+# ---------------------------------------------------------
+# Check if user is logged in via Google OAuth
+if not st.user.is_logged_in:
+    # Show login page
+    st.title("🎯 Personalized Quiz Generator")
+    st.write("")
+    st.write("### Welcome! Please log in to continue.")
+    st.write("Sign in with your Google account to take quizzes, track your progress, and practice.")
+    st.write("")
+    st.login("google")
+    st.stop()  # Stop here — don't show anything else until logged in
+
+# User is logged in — get their name and store it
+user_name = st.user.name if st.user.name else st.user.email
+st.session_state.student_name = user_name
+
+# ---------------------------------------------------------
 # CUSTOM CSS — Duolingo-inspired styling
 # ---------------------------------------------------------
 st.markdown("""
@@ -226,6 +244,11 @@ def show_question(q, q_num, total, key_prefix="q"):
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Quiz Generator")
+st.sidebar.write(f"👋 **{user_name}**")
+if st.sidebar.button("Logout"):
+    st.logout()
+    st.rerun()
+st.sidebar.write("---")
 page = st.sidebar.radio(
     "Go to",
     ["Home", "Take Quiz", "My Progress", "Practice Quiz"],
@@ -270,12 +293,11 @@ if page == "Home":
 elif page == "Take Quiz":
     st.title("📝 Take the Quiz")
 
-    # Initialize session state
+    # Initialize session state (student_name comes from Google login above)
     if "quiz_started" not in st.session_state:
         st.session_state.quiz_started = False
         st.session_state.current_q = 0
         st.session_state.score = 0
-        st.session_state.student_name = ""
         st.session_state.quiz_difficulty = "beginner"
         st.session_state.quiz_questions = []
         st.session_state.answers = []
@@ -285,9 +307,9 @@ elif page == "Take Quiz":
 
     TIMER_SECONDS = 20  # seconds per question
 
-    # Step 1: Get student name and difficulty
+    # Step 1: Choose difficulty (name comes from Google login)
     if not st.session_state.quiz_started:
-        name = st.text_input("Enter your name:")
+        st.write(f"Logged in as: **{user_name}**")
 
         difficulty = st.radio(
             "Choose your difficulty level:",
@@ -300,29 +322,25 @@ elif page == "Take Quiz":
         )
 
         if st.button("Start Quiz"):
-            if name.strip():
-                st.session_state.student_name = name.strip()
-                st.session_state.quiz_difficulty = difficulty
-                setup_database()
+            st.session_state.quiz_difficulty = difficulty
+            setup_database()
 
-                # Generate questions via API
-                with st.spinner(f"🤖 Generating 10 {difficulty} questions... This may take a moment."):
-                    questions = generate_quiz_questions(difficulty)
+            # Generate questions via API
+            with st.spinner(f"🤖 Generating 10 {difficulty} questions... This may take a moment."):
+                questions = generate_quiz_questions(difficulty)
 
-                if questions:
-                    st.session_state.quiz_questions = questions
-                    st.session_state.quiz_started = True
-                    st.session_state.current_q = 0
-                    st.session_state.score = 0
-                    st.session_state.answers = []
-                    st.session_state.quiz_feedback = False
-                    st.session_state.quiz_time_up = False
-                    st.session_state.quiz_start_time = time.time()
-                    st.rerun()
-                else:
-                    st.error("❌ Could not generate questions. Check your API connection and try again.")
+            if questions:
+                st.session_state.quiz_questions = questions
+                st.session_state.quiz_started = True
+                st.session_state.current_q = 0
+                st.session_state.score = 0
+                st.session_state.answers = []
+                st.session_state.quiz_feedback = False
+                st.session_state.quiz_time_up = False
+                st.session_state.quiz_start_time = time.time()
+                st.rerun()
             else:
-                st.warning("Please enter your name first!")
+                st.error("❌ Could not generate questions. Check your API connection and try again.")
 
     # Step 2: Show questions one at a time
     elif st.session_state.current_q < len(st.session_state.quiz_questions):
@@ -468,50 +486,45 @@ elif page == "Take Quiz":
 elif page == "My Progress":
     st.title("📊 My Progress")
 
-    name = st.text_input("Enter student name:")
+    st.write(f"Showing progress for: **{user_name}**")
+    setup_database()
+    breakdown = get_topic_breakdown(user_name)
 
-    if st.button("Check Progress"):
-        if not name.strip():
-            st.warning("Please enter a student name.")
+    if not breakdown:
+        st.warning(f"No quiz history found for '{user_name}'.")
+        st.write("Take the quiz first!")
+    else:
+        # Build a table
+        st.subheader(f"Topic Report for {user_name}")
+
+        data = []
+        weak_topics = []
+        for topic, total, correct in breakdown:
+            accuracy = round((correct / total) * 100, 1)
+            status = "✅ OK" if accuracy >= WEAK_THRESHOLD else "⚠️ Weak"
+            if accuracy < WEAK_THRESHOLD:
+                weak_topics.append(topic)
+            data.append({
+                "Topic": topic,
+                "Correct": correct,
+                "Total": total,
+                "Accuracy %": accuracy,
+                "Status": status,
+            })
+
+        st.dataframe(data, use_container_width=True)
+
+        # Bar chart
+        st.subheader("Accuracy by Topic")
+        chart_data = {row["Topic"]: row["Accuracy %"] for row in data}
+        st.bar_chart(chart_data)
+
+        # Weak topics alert
+        if weak_topics:
+            st.error(f"⚠️ Weak topics (below {WEAK_THRESHOLD}%): **{', '.join(weak_topics)}**")
+            st.write("Go to **Practice Quiz** to work on these!")
         else:
-            setup_database()
-            breakdown = get_topic_breakdown(name.strip())
-
-            if not breakdown:
-                st.warning(f"No quiz history found for '{name.strip()}'.")
-                st.write("Take the quiz first!")
-            else:
-                # Build a table
-                st.subheader(f"Topic Report for {name.strip()}")
-
-                data = []
-                weak_topics = []
-                for topic, total, correct in breakdown:
-                    accuracy = round((correct / total) * 100, 1)
-                    status = "✅ OK" if accuracy >= WEAK_THRESHOLD else "⚠️ Weak"
-                    if accuracy < WEAK_THRESHOLD:
-                        weak_topics.append(topic)
-                    data.append({
-                        "Topic": topic,
-                        "Correct": correct,
-                        "Total": total,
-                        "Accuracy %": accuracy,
-                        "Status": status,
-                    })
-
-                st.dataframe(data, use_container_width=True)
-
-                # Bar chart
-                st.subheader("Accuracy by Topic")
-                chart_data = {row["Topic"]: row["Accuracy %"] for row in data}
-                st.bar_chart(chart_data)
-
-                # Weak topics alert
-                if weak_topics:
-                    st.error(f"⚠️ Weak topics (below {WEAK_THRESHOLD}%): **{', '.join(weak_topics)}**")
-                    st.write("Go to **Practice Quiz** to work on these!")
-                else:
-                    st.success(f"🎉 All topics above {WEAK_THRESHOLD}%! Great job!")
+            st.success(f"🎉 All topics above {WEAK_THRESHOLD}%! Great job!")
 
 # ---------------------------------------------------------
 # PAGE: PRACTICE QUIZ
@@ -525,7 +538,7 @@ elif page == "Practice Quiz":
         st.session_state.practice_questions = []
         st.session_state.practice_current = 0
         st.session_state.practice_score = 0
-        st.session_state.practice_name = ""
+        st.session_state.practice_name = user_name
         st.session_state.practice_difficulty = "beginner"
         st.session_state.practice_answers = []
         st.session_state.practice_feedback = False
@@ -535,7 +548,7 @@ elif page == "Practice Quiz":
     TIMER_SECONDS = 20  # seconds per question
 
     if not st.session_state.practice_started:
-        name = st.text_input("Enter your name:")
+        st.write(f"Logged in as: **{user_name}**")
 
         # Difficulty selector for practice too
         practice_difficulty = st.radio(
@@ -550,22 +563,19 @@ elif page == "Practice Quiz":
         )
 
         if st.button("Find My Weak Topics"):
-            if not name.strip():
-                st.warning("Please enter your name.")
-            else:
-                setup_database()
-                from practice_quiz import find_weak_topics
-                weak = find_weak_topics(name.strip())
+            setup_database()
+            from practice_quiz import find_weak_topics
+            weak = find_weak_topics(user_name)
 
-                if weak is None:
-                    st.warning(f"No quiz history for '{name.strip()}'. Take the main quiz first!")
-                elif not weak:
-                    st.success("🎉 No weak topics! You're doing great!")
-                else:
-                    st.session_state.practice_name = name.strip()
-                    st.session_state.practice_difficulty = practice_difficulty
-                    st.session_state.practice_weak_topics = weak
-                    st.rerun()
+            if weak is None:
+                st.warning(f"No quiz history for '{user_name}'. Take the main quiz first!")
+            elif not weak:
+                st.success("🎉 No weak topics! You're doing great!")
+            else:
+                st.session_state.practice_name = user_name
+                st.session_state.practice_difficulty = practice_difficulty
+                st.session_state.practice_weak_topics = weak
+                st.rerun()
 
         # Show weak topics and generate button if we have them
         if hasattr(st.session_state, 'practice_weak_topics') and st.session_state.practice_weak_topics:
