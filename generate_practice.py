@@ -9,20 +9,16 @@ This script does 4 things, in order:
 Now analyze.py and generate_question.py actually talk to each other!
 """
 
-import sqlite3
 import json
-import os
 from datetime import datetime
-from dotenv import load_dotenv
 
 # Reuse our question generator (no duplicate code!)
 from generate_question import generate_question
+from database import get_connection, setup_database, DB_FILE
 
 # ---------------------------------------------------------
 # SETUP
 # ---------------------------------------------------------
-load_dotenv()
-DB_FILE = "quiz_history.db"
 WEAK_THRESHOLD = 70  # percent — below this, a topic counts as "weak"
 QUESTIONS_PER_TOPIC = 2  # how many new questions to generate per weak topic
 
@@ -32,7 +28,7 @@ QUESTIONS_PER_TOPIC = 2  # how many new questions to generate per weak topic
 # ---------------------------------------------------------
 def get_topic_breakdown(student_name):
     """Return a list of (topic, total_attempts, correct_attempts) for one student."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -93,6 +89,8 @@ def save_practice_questions(student_name, questions):
 # ---------------------------------------------------------
 def generate_practice():
     """Full pipeline: find weak topics → generate questions → save to file."""
+
+    setup_database()
 
     print("=" * 55)
     print("   🎯 PERSONALIZED PRACTICE QUESTION GENERATOR")

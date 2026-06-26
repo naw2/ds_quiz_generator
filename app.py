@@ -4,21 +4,19 @@ Run with:  streamlit run app.py
 
 Pages:
   1. Home          — welcome + overview
-  2. Take Quiz     — 5-question quiz, saves results to SQLite
+  2. Take Quiz     — 10 dynamic questions with difficulty selection
   3. My Progress   — topic-by-topic accuracy with charts
   4. Practice Quiz — AI-generated questions for weak topics
 """
 
 import streamlit as st
-import sqlite3
-import json
 import random
-from datetime import datetime
 
 # Import helpers from our existing scripts
-from quiz import setup_database, save_result, questions
+from database import setup_database, save_result, DB_FILE
 from analyze import get_topic_breakdown, WEAK_THRESHOLD
 from generate_question import generate_question
+from quiz import generate_quiz_questions, TOPICS, DIFFICULTY_LEVELS
 
 # ---------------------------------------------------------
 # PAGE CONFIG
@@ -47,9 +45,14 @@ if page == "Home":
     Welcome! This app helps **data science students** practice Python basics.
 
     ### How it works
-    1. **Take a quiz** — answer 5 questions on Python fundamentals
+    1. **Take a quiz** — choose your difficulty level and answer 10 AI-generated questions
     2. **See your progress** — find out which topics you're weak in
     3. **Practice** — get fresh AI-generated questions targeting your weak spots
+
+    ### Difficulty levels
+    - 🟢 **Beginner** — basic syntax, definitions, simple concepts
+    - 🟡 **Intermediate** — applying concepts, reading code, combining features
+    - 🔴 **Advanced** — edge cases, tricky behavior, performance trade-offs
 
     ### Topics covered
     - Lists
@@ -73,31 +76,56 @@ elif page == "Take Quiz":
         st.session_state.current_q = 0
         st.session_state.score = 0
         st.session_state.student_name = ""
+        st.session_state.quiz_difficulty = "beginner"
+        st.session_state.quiz_questions = []
         st.session_state.answers = []
 
-    # Step 1: Get student name
+    # Step 1: Get student name and difficulty
     if not st.session_state.quiz_started:
         name = st.text_input("Enter your name:")
+
+        difficulty = st.radio(
+            "Choose your difficulty level:",
+            ["beginner", "intermediate", "advanced"],
+            format_func=lambda x: {
+                "beginner": "🟢 Beginner — basic syntax and definitions",
+                "intermediate": "🟡 Intermediate — applying concepts, reading code",
+                "advanced": "🔴 Advanced — edge cases, tricky behavior",
+            }[x],
+        )
+
         if st.button("Start Quiz"):
             if name.strip():
                 st.session_state.student_name = name.strip()
-                st.session_state.quiz_started = True
-                st.session_state.current_q = 0
-                st.session_state.score = 0
-                st.session_state.answers = []
+                st.session_state.quiz_difficulty = difficulty
                 setup_database()
-                st.rerun()
+
+                # Generate questions via API
+                with st.spinner(f"🤖 Generating 10 {difficulty} questions... This may take a moment."):
+                    questions = generate_quiz_questions(difficulty)
+
+                if questions:
+                    st.session_state.quiz_questions = questions
+                    st.session_state.quiz_started = True
+                    st.session_state.current_q = 0
+                    st.session_state.score = 0
+                    st.session_state.answers = []
+                    st.rerun()
+                else:
+                    st.error("❌ Could not generate questions. Check your API connection and try again.")
             else:
                 st.warning("Please enter your name first!")
 
     # Step 2: Show questions one at a time
-    elif st.session_state.current_q < len(questions):
+    elif st.session_state.current_q < len(st.session_state.quiz_questions):
+        questions = st.session_state.quiz_questions
         q = questions[st.session_state.current_q]
         q_num = st.session_state.current_q + 1
         total = len(questions)
 
         st.progress(q_num / total)
         st.subheader(f"Question {q_num} of {total}")
+        st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
         st.write(f"**{q['question']}**")
 
         # Radio buttons for options
@@ -114,6 +142,7 @@ elif page == "Take Quiz":
                 q["topic"],
                 q["question"],
                 is_correct,
+                st.session_state.quiz_difficulty,
             )
 
             if is_correct:
@@ -131,16 +160,12 @@ elif page == "Take Quiz":
             })
 
             st.session_state.current_q += 1
-            if st.session_state.current_q < len(questions):
-                if st.button("Next Question →"):
-                    st.rerun()
-            else:
-                st.rerun()
+            st.rerun()
 
     # Step 3: Show final results
     else:
         score = st.session_state.score
-        total = len(questions)
+        total = len(st.session_state.quiz_questions)
         pct = (score / total) * 100
 
         st.balloons()
@@ -167,6 +192,7 @@ elif page == "Take Quiz":
             st.session_state.quiz_started = False
             st.session_state.current_q = 0
             st.session_state.score = 0
+            st.session_state.quiz_questions = []
             st.session_state.answers = []
             st.rerun()
 
@@ -234,10 +260,23 @@ elif page == "Practice Quiz":
         st.session_state.practice_current = 0
         st.session_state.practice_score = 0
         st.session_state.practice_name = ""
+        st.session_state.practice_difficulty = "beginner"
         st.session_state.practice_answers = []
 
     if not st.session_state.practice_started:
         name = st.text_input("Enter your name:")
+
+        # Difficulty selector for practice too
+        practice_difficulty = st.radio(
+            "Practice difficulty level:",
+            ["beginner", "intermediate", "advanced"],
+            format_func=lambda x: {
+                "beginner": "🟢 Beginner",
+                "intermediate": "🟡 Intermediate",
+                "advanced": "🔴 Advanced",
+            }[x],
+            key="practice_diff",
+        )
 
         if st.button("Find My Weak Topics"):
             if not name.strip():
@@ -250,9 +289,10 @@ elif page == "Practice Quiz":
                 if weak is None:
                     st.warning(f"No quiz history for '{name.strip()}'. Take the main quiz first!")
                 elif not weak:
-                    st.success(f"🎉 No weak topics! You're doing great!")
+                    st.success("🎉 No weak topics! You're doing great!")
                 else:
                     st.session_state.practice_name = name.strip()
+                    st.session_state.practice_difficulty = practice_difficulty
                     st.session_state.practice_weak_topics = weak
                     st.rerun()
 
@@ -267,7 +307,7 @@ elif page == "Practice Quiz":
                     for topic in weak:
                         for _ in range(2):  # 2 questions per topic
                             try:
-                                new_q = generate_question(topic)
+                                new_q = generate_question(topic, difficulty=practice_difficulty)
                                 quiz_questions.append(new_q)
                             except Exception as e:
                                 st.warning(f"Failed to generate question for {topic}: {e}")
@@ -291,7 +331,8 @@ elif page == "Practice Quiz":
         total = len(questions_list)
 
         st.progress((idx + 1) / total)
-        st.subheader(f"Question {idx + 1} of {total} ({q['topic']})")
+        st.subheader(f"Question {idx + 1} of {total}")
+        st.caption(f"Topic: {q['topic']} | Difficulty: {q.get('difficulty', 'beginner')}")
         st.write(f"**{q['question']}**")
 
         options = [f"{letter}. {text}" for letter, text in q["options"].items()]
@@ -307,6 +348,7 @@ elif page == "Practice Quiz":
                 q["topic"],
                 q["question"],
                 is_correct,
+                st.session_state.practice_difficulty,
             )
 
             if is_correct:
@@ -324,11 +366,7 @@ elif page == "Practice Quiz":
             })
 
             st.session_state.practice_current += 1
-            if st.session_state.practice_current < total:
-                if st.button("Next Question →"):
-                    st.rerun()
-            else:
-                st.rerun()
+            st.rerun()
 
     # Practice quiz results
     else:

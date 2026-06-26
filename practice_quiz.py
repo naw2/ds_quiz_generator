@@ -2,7 +2,7 @@
 for each student's weak topics.
 
 This script:
-1. Asks for a student name
+1. Asks for a student name and difficulty level
 2. Looks up their weak topics from quiz_history.db
 3. Generates fresh, random questions via Claude for each weak topic
 4. Runs them as a quiz (same format as quiz.py)
@@ -14,9 +14,10 @@ Every run creates DIFFERENT questions — Claude generates unique ones each time
 import sqlite3
 import json
 import random
-import os
 from datetime import datetime
-from dotenv import load_dotenv
+
+# Import shared database functions
+from database import setup_database, save_result, get_connection, DB_FILE
 
 # Reuse our question generator's call_claude function
 from generate_question import call_claude
@@ -24,61 +25,17 @@ from generate_question import call_claude
 # ---------------------------------------------------------
 # SETUP
 # ---------------------------------------------------------
-load_dotenv()
-DB_FILE = "quiz_history.db"
 WEAK_THRESHOLD = 70  # percent — below this, a topic counts as "weak"
 QUESTIONS_PER_TOPIC = 2  # how many new questions per weak topic
+DIFFICULTY_LEVELS = ["beginner", "intermediate", "advanced"]
 
 
 # ---------------------------------------------------------
-# STEP 1: Database (same pattern as quiz.py)
-# ---------------------------------------------------------
-def setup_database():
-    """Create the quiz_results table if it doesn't already exist."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS quiz_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_name TEXT,
-            topic TEXT,
-            question TEXT,
-            is_correct INTEGER,
-            timestamp TEXT
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-def save_result(student_name, topic, question, is_correct):
-    """Save ONE answer into the database."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT INTO quiz_results (student_name, topic, question, is_correct, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        student_name,
-        topic,
-        question,
-        1 if is_correct else 0,
-        datetime.now().isoformat(),
-    ))
-
-    conn.commit()
-    conn.close()
-
-
-# ---------------------------------------------------------
-# STEP 2: Find weak topics (same logic as analyze.py)
+# STEP 1: Find weak topics (same logic as analyze.py)
 # ---------------------------------------------------------
 def find_weak_topics(student_name):
     """Return a list of topic names where accuracy is below WEAK_THRESHOLD."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -106,16 +63,27 @@ def find_weak_topics(student_name):
 
 
 # ---------------------------------------------------------
-# STEP 3: Generate UNIQUE questions each time
+# STEP 2: Generate UNIQUE questions each time
 # ---------------------------------------------------------
-def generate_unique_question(topic, seed_hint):
+def generate_unique_question(topic, seed_hint, difficulty='beginner'):
     """Generate ONE new question on a topic.
 
     seed_hint is a random number used to make Claude produce a
     different question every time (so no two quiz runs are the same).
     """
-    prompt = f"""Create one multiple-choice Python question for a beginner
-data science student, about the topic: {topic}.
+    difficulty_instructions = {
+        'beginner': "Ask about basic syntax, definitions, or simple concepts.",
+        'intermediate': "Ask about applying concepts, combining features, or reading code.",
+        'advanced': "Ask about edge cases, performance trade-offs, or tricky behavior.",
+    }
+
+    diff_instruction = difficulty_instructions.get(difficulty, difficulty_instructions['beginner'])
+
+    prompt = f"""Create one multiple-choice Python question for a data science student.
+Topic: {topic}
+Difficulty level: {difficulty}
+
+{diff_instruction}
 
 IMPORTANT: Make this question DIFFERENT from typical ones about this topic.
 Use this random seed as inspiration for variety: seed-{seed_hint}
@@ -136,41 +104,36 @@ in exactly this shape:
 
 The "answer" must be one of "A", "B", "C", or "D" — whichever option is correct."""
 
-    raw_text = call_claude(prompt)
+    # Retry up to 3 times — the API sometimes returns truncated JSON
+    last_error = None
+    for attempt in range(1, 4):
+        raw_text = call_claude(prompt)
 
-    # Strip markdown code blocks if Claude wraps the JSON
-    raw_text = raw_text.strip()
-    if raw_text.startswith("```"):
-        first_newline = raw_text.find("\n")
-        if first_newline != -1:
-            raw_text = raw_text[first_newline + 1:]
-        if raw_text.endswith("```"):
-            raw_text = raw_text[:-3]
+        # Strip markdown code blocks if Claude wraps the JSON
         raw_text = raw_text.strip()
+        if raw_text.startswith("```"):
+            first_newline = raw_text.find("\n")
+            if first_newline != -1:
+                raw_text = raw_text[first_newline + 1:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            raw_text = raw_text.strip()
 
-    question_data = json.loads(raw_text)
-    question_data["topic"] = topic
+        try:
+            question_data = json.loads(raw_text)
+            question_data["topic"] = topic
+            question_data["difficulty"] = difficulty
+            return question_data
+        except json.JSONDecodeError as e:
+            last_error = f"JSON parse error (attempt {attempt}): {e}"
+            import time
+            time.sleep(1)
 
-    return question_data
-
-
-def generate_all_questions(weak_topics):
-    """Generate fresh questions for all weak topics.
-
-    Uses random seeds to make sure questions vary between runs.
-    Returns a list of question dictionaries (same shape as quiz.py's hardcoded ones).
-    """
-    questions = []
-    for topic in weak_topics:
-        for _ in range(QUESTIONS_PER_TOPIC):
-            # Random seed = different question every time!
-            seed_hint = random.randint(1000, 9999)
-            questions.append(generate_unique_question(topic, seed_hint))
-    return questions
+    raise RuntimeError(f"Failed to generate valid question after 3 attempts: {last_error}")
 
 
 # ---------------------------------------------------------
-# STEP 4: Run the practice quiz
+# STEP 3: Run the practice quiz
 # ---------------------------------------------------------
 def run_practice_quiz():
     """Full pipeline: find weak topics → generate fresh questions → quiz → save."""
@@ -183,6 +146,20 @@ def run_practice_quiz():
 
     # --- Get student name ---
     student_name = input("\nEnter student name: ").strip()
+
+    # --- Choose difficulty ---
+    print("\nChoose your difficulty level:")
+    print("   1. Beginner     (basic syntax and definitions)")
+    print("   2. Intermediate (applying concepts, reading code)")
+    print("   3. Advanced     (edge cases, tricky behavior)")
+
+    while True:
+        choice = input("\nEnter 1, 2, or 3: ").strip()
+        if choice in ("1", "2", "3"):
+            break
+        print("   Please enter 1, 2, or 3.")
+
+    difficulty = DIFFICULTY_LEVELS[int(choice) - 1]
 
     # --- Find weak topics ---
     print(f"\n🔍 Checking quiz history for '{student_name}'...")
@@ -199,7 +176,7 @@ def run_practice_quiz():
         return
 
     print(f"\n📌 Weak topics: {', '.join(weak_topics)}")
-    print(f"🤖 Generating {len(weak_topics) * QUESTIONS_PER_TOPIC} fresh questions just for you...\n")
+    print(f"🤖 Generating {len(weak_topics) * QUESTIONS_PER_TOPIC} {difficulty} questions just for you...\n")
 
     # --- Generate fresh questions on the fly ---
     quiz_questions = []
@@ -208,7 +185,7 @@ def run_practice_quiz():
         for _ in range(QUESTIONS_PER_TOPIC):
             try:
                 seed_hint = random.randint(1000, 9999)
-                new_q = generate_unique_question(topic, seed_hint)
+                new_q = generate_unique_question(topic, seed_hint, difficulty)
                 quiz_questions.append(new_q)
                 print(f"   ✅ {new_q['question'][:60]}...")
             except Exception as e:
@@ -225,7 +202,7 @@ def run_practice_quiz():
     score = 0
     total = len(quiz_questions)
     print("\n" + "=" * 55)
-    print(f"   QUIZ TIME! {total} questions — Type A, B, C, or D")
+    print(f"   QUIZ TIME! {total} {difficulty} questions — Type A, B, C, or D")
     print("=" * 55 + "\n")
 
     for i, q in enumerate(quiz_questions, start=1):
@@ -242,7 +219,7 @@ def run_practice_quiz():
         is_correct = (user_answer == q["answer"])
 
         # Save this answer to the database (tracks improvement over time!)
-        save_result(student_name, q["topic"], q["question"], is_correct)
+        save_result(student_name, q["topic"], q["question"], is_correct, difficulty)
 
         if is_correct:
             print("   ✅ Correct!\n")

@@ -6,15 +6,14 @@ and reports, for one student, which topics they need more practice on.
 "Weak topic" = accuracy below 70% (our chosen threshold).
 """
 
-import sqlite3
+from database import get_connection, setup_database, DB_FILE
 
-DB_FILE = "quiz_history.db"
 WEAK_THRESHOLD = 70  # percent — below this, a topic counts as "weak"
 
 
 def get_topic_breakdown(student_name):
     """Return a list of (topic, total_attempts, correct_attempts) for one student."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -34,6 +33,7 @@ def get_topic_breakdown(student_name):
 def analyze_student(student_name):
     """Print a full weak-topic report for one student."""
 
+    setup_database()
     breakdown = get_topic_breakdown(student_name)
 
     if not breakdown:

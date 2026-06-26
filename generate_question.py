@@ -92,15 +92,37 @@ def call_claude(prompt):
     raise RuntimeError(f"Failed after 3 attempts: {last_error}")
 
 
-def generate_question(topic):
+def generate_question(topic, difficulty='beginner'):
     """Ask Claude to create ONE new multiple-choice question on `topic`.
 
+    Args:
+        topic: The topic to generate a question about
+        difficulty: 'beginner', 'intermediate', or 'advanced'
+
     Returns a dictionary in the SAME shape as our hardcoded questions:
-    {"question": ..., "options": {...}, "answer": ..., "topic": ...}
+    {"question": ..., "options": {...}, "answer": ..., "topic": ..., "difficulty": ...}
     """
 
-    prompt = f"""Create one multiple-choice Python question for a beginner
-data science student, about the topic: {topic}.
+    # Build a difficulty-specific instruction
+    difficulty_instructions = {
+        'beginner': """Ask about basic syntax, definitions, or simple concepts.
+A student who just started learning Python should be able to answer this.
+Example: "What does the len() function return?" """,
+        'intermediate': """Ask about applying concepts, combining features, or reading code.
+A student who has practiced Python for a few weeks should be able to answer this.
+Example: "What is the output of: [x**2 for x in range(5) if x > 2]?" """,
+        'advanced': """Ask about edge cases, performance trade-offs, or tricky behavior.
+A student preparing for exams or interviews should be challenged by this.
+Example: "What happens when you modify a list while iterating over it with a for loop?" """,
+    }
+
+    diff_instruction = difficulty_instructions.get(difficulty, difficulty_instructions['beginner'])
+
+    prompt = f"""Create one multiple-choice Python question for a data science student.
+Topic: {topic}
+Difficulty level: {difficulty}
+
+{diff_instruction}
 
 Reply with ONLY valid JSON, no other text, no markdown formatting,
 in exactly this shape:
@@ -138,6 +160,7 @@ The "answer" must be one of "A", "B", "C", or "D" — whichever option is correc
         try:
             question_data = json.loads(raw_text)
             question_data["topic"] = topic
+            question_data["difficulty"] = difficulty
             return question_data
         except json.JSONDecodeError as e:
             last_error = f"JSON parse error (attempt {attempt}): {e}"
