@@ -32,22 +32,28 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# GOOGLE LOGIN — runs on every page load
+# NAME ENTRY — runs on every page load
 # ---------------------------------------------------------
-# Check if user is logged in via Google OAuth
-if not st.user.is_logged_in:
-    # Show login page
+# Ask the user for their name before showing the quiz
+if "student_name" not in st.session_state or not st.session_state.student_name:
+    # Show welcome page
     st.title("🎯 Personalized Quiz Generator")
     st.write("")
-    st.write("### Welcome! Please log in to continue.")
-    st.write("Sign in with your Google account to take quizzes, track your progress, and practice.")
+    st.write("### Welcome! Please enter your name to continue.")
+    st.write("Type your name below to take quizzes, track your progress, and practice.")
     st.write("")
-    st.login("google")
-    st.stop()  # Stop here — don't show anything else until logged in
 
-# User is logged in — get their name and store it
-user_name = st.user.name if st.user.name else st.user.email
-st.session_state.student_name = user_name
+    with st.form("name_form"):
+        name_input = st.text_input("Your name", placeholder="e.g. Khin")
+        submitted = st.form_submit_button("Start Quiz →", use_container_width=True)
+
+        if submitted and name_input.strip():
+            st.session_state.student_name = name_input.strip()
+            st.rerun()
+        elif submitted:
+            st.error("Please enter your name to continue.")
+
+    st.stop()  # Stop here — don't show anything else until name is entered
 
 # ---------------------------------------------------------
 # CUSTOM CSS — Duolingo-inspired styling
@@ -244,9 +250,9 @@ def show_question(q, q_num, total, key_prefix="q"):
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Quiz Generator")
-st.sidebar.write(f"👋 **{user_name}**")
-if st.sidebar.button("Logout"):
-    st.logout()
+st.sidebar.write(f"👋 **{st.session_state.student_name}**")
+if st.sidebar.button("Change Name"):
+    st.session_state.student_name = ""
     st.rerun()
 st.sidebar.write("---")
 page = st.sidebar.radio(
@@ -293,7 +299,7 @@ if page == "Home":
 elif page == "Take Quiz":
     st.title("📝 Take the Quiz")
 
-    # Initialize session state (student_name comes from Google login above)
+    # Initialize session state (student_name comes from name entry above)
     if "quiz_started" not in st.session_state:
         st.session_state.quiz_started = False
         st.session_state.current_q = 0
@@ -307,9 +313,9 @@ elif page == "Take Quiz":
 
     TIMER_SECONDS = 20  # seconds per question
 
-    # Step 1: Choose difficulty (name comes from Google login)
+    # Step 1: Choose difficulty (name comes from name entry)
     if not st.session_state.quiz_started:
-        st.write(f"Logged in as: **{user_name}**")
+        st.write(f"Logged in as: **{st.session_state.student_name}**")
 
         difficulty = st.radio(
             "Choose your difficulty level:",
@@ -486,16 +492,16 @@ elif page == "Take Quiz":
 elif page == "My Progress":
     st.title("📊 My Progress")
 
-    st.write(f"Showing progress for: **{user_name}**")
+    st.write(f"Showing progress for: **{st.session_state.student_name}**")
     setup_database()
-    breakdown = get_topic_breakdown(user_name)
+    breakdown = get_topic_breakdown(st.session_state.student_name)
 
     if not breakdown:
-        st.warning(f"No quiz history found for '{user_name}'.")
+        st.warning(f"No quiz history found for '{st.session_state.student_name}'.")
         st.write("Take the quiz first!")
     else:
         # Build a table
-        st.subheader(f"Topic Report for {user_name}")
+        st.subheader(f"Topic Report for {st.session_state.student_name}")
 
         data = []
         weak_topics = []
@@ -538,7 +544,7 @@ elif page == "Practice Quiz":
         st.session_state.practice_questions = []
         st.session_state.practice_current = 0
         st.session_state.practice_score = 0
-        st.session_state.practice_name = user_name
+        st.session_state.practice_name = st.session_state.student_name
         st.session_state.practice_difficulty = "beginner"
         st.session_state.practice_answers = []
         st.session_state.practice_feedback = False
@@ -548,7 +554,7 @@ elif page == "Practice Quiz":
     TIMER_SECONDS = 20  # seconds per question
 
     if not st.session_state.practice_started:
-        st.write(f"Logged in as: **{user_name}**")
+        st.write(f"Logged in as: **{st.session_state.student_name}**")
 
         # Difficulty selector for practice too
         practice_difficulty = st.radio(
@@ -565,14 +571,14 @@ elif page == "Practice Quiz":
         if st.button("Find My Weak Topics"):
             setup_database()
             from practice_quiz import find_weak_topics
-            weak = find_weak_topics(user_name)
+            weak = find_weak_topics(st.session_state.student_name)
 
             if weak is None:
-                st.warning(f"No quiz history for '{user_name}'. Take the main quiz first!")
+                st.warning(f"No quiz history for '{st.session_state.student_name}'. Take the main quiz first!")
             elif not weak:
                 st.success("🎉 No weak topics! You're doing great!")
             else:
-                st.session_state.practice_name = user_name
+                st.session_state.practice_name = st.session_state.student_name
                 st.session_state.practice_difficulty = practice_difficulty
                 st.session_state.practice_weak_topics = weak
                 st.rerun()
