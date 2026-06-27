@@ -10,7 +10,7 @@ Built for data science students learning Python basics.
 
 ## What It Does
 
-1. **Takes a quiz** — 5 multiple-choice questions on Python fundamentals
+1. **Takes a quiz** — 10 multiple-choice questions on Python fundamentals with 3 difficulty levels
 2. **Tracks results** — every answer is saved to a SQLite database
 3. **Finds weak topics** — analyzes which topics a student struggles with (below 70% accuracy)
 4. **Generates new questions** — uses the Claude API to create fresh questions for weak topics
@@ -28,19 +28,19 @@ Built for data science students learning Python basics.
 
 | File | What It Does |
 |------|--------------|
-| `quiz.py` | Main quiz — 5 questions, saves every answer to SQLite |
+| `quiz.py` | Main quiz — 10 dynamic questions with difficulty levels, saves every answer to SQLite |
 | `analyze.py` | Reads quiz history and shows weak topics for a student |
 | `generate_question.py` | Calls Claude API to create a new question for any topic |
 | `generate_practice.py` | Finds weak topics, generates questions, saves to JSON |
 | `practice_quiz.py` | Full practice quiz — finds weak topics, generates fresh questions on the fly, saves results |
-| `app.py` | **Streamlit web UI** — run the quiz, check progress, and practice in a browser |
+| `database.py` | Shared database module — all DB functions in one place |
+| `app.py` | **Streamlit web UI** — run the quiz with difficulty selection, check progress, and practice in a browser |
 
 ## How to Run
 
 ### Prerequisites
 
 - Python 3.12+
-- `requests` library (for Claude API calls)
 
 ```bash
 pip install requests python-dotenv streamlit
@@ -52,10 +52,10 @@ pip install requests python-dotenv streamlit
 streamlit run app.py
 ```
 
-Opens in your browser at `http://localhost:8501`. From there you can:
-- Take the quiz
+Opens in your browser at `http://localhost:8501`. Enter your name, then you can:
+- Take the quiz (choose beginner, intermediate, or advanced difficulty)
 - See your progress with charts
-- Practice with AI-generated questions
+- Practice with AI-generated questions targeting your weak topics
 
 ### Run the Main Quiz (Terminal)
 
@@ -63,7 +63,7 @@ Opens in your browser at `http://localhost:8501`. From there you can:
 python3 quiz.py
 ```
 
-You'll be asked for your name, then answer 5 questions. Results are saved to `quiz_history.db`.
+You'll be asked for your name and difficulty level, then answer 10 questions. Results are saved to `quiz_history.db`.
 
 ### Analyze Your Progress
 
@@ -118,12 +118,13 @@ A topic is "weak" if the student's accuracy is below 70%. The app reads all past
 ```
 $ python3 quiz.py
 Enter your name: Alex
+Choose difficulty (beginner/intermediate/advanced): beginner
 
 ==================================================
        DATA SCIENCE BASICS — PYTHON QUIZ
 ==================================================
 
-There are 5 questions. Type A, B, C, or D to answer.
+There are 10 questions. Type A, B, C, or D to answer.
 
 Question 1: What is the correct way to create a list in Python?
    A. list = (1, 2, 3)
@@ -137,7 +138,7 @@ Your answer (A/B/C/D): B
 ...
 
 ==================================================
-           FINAL SCORE: 4/5
+           FINAL SCORE: 8/10
            That's 80%
            Great job! 🌟
 ==================================================
@@ -157,5 +158,5 @@ Your answer (A/B/C/D): B
 ## Future Plans
 
 - [x] Streamlit web UI
+- [x] Student progress charts
 - [ ] More question topics
-- [ ] Student progress charts
